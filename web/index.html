@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>YADA Agent Explorer</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0e1116; --card:#171c24; --line:#2a3340; --text:#e7edf5; --muted:#93a0b3; --accent:#3dd6c6; }
+    body { margin:0; font:16px/1.45 ui-sans-serif, system-ui, sans-serif; background:var(--bg); color:var(--text); }
+    header, main { max-width:980px; margin:0 auto; padding:24px; }
+    h1 { margin:0 0 6px; font-size:1.6rem; }
+    p { color:var(--muted); }
+    form, .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin:12px 0; }
+    label { display:block; font-size:.85rem; color:var(--muted); margin-bottom:6px; }
+    input, button { font:inherit; }
+    input { width:100%; box-sizing:border-box; background:#0e1116; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:10px; }
+    .row { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+    button { background:var(--accent); color:#06211e; border:0; border-radius:8px; padding:10px 14px; cursor:pointer; font-weight:650; }
+    pre { white-space:pre-wrap; word-break:break-word; background:#0b0e13; border-radius:8px; padding:12px; min-height:80px; }
+    a { color:var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>YADA Agent Explorer</h1>
+    <p>Read-only dashboard for a YadaCoin node. Talks to <code>/get-status</code>, <code>/get-latest-block</code>, <code>/explorer-search</code>, and <code>/wallet</code>. Browser calls need the node to allow CORS; otherwise use the Python CLI.</p>
+  </header>
+  <main>
+    <form id="node-form">
+      <label for="node">Node URL</label>
+      <input id="node" value="http://127.0.0.1:8000" />
+      <div class="row">
+        <button type="button" id="status">Status</button>
+        <button type="button" id="latest">Latest block</button>
+        <button type="button" id="peers">Peers</button>
+      </div>
+    </form>
+    <form id="search-form">
+      <label for="term">Explorer search (height, address, hash, username)</label>
+      <input id="term" placeholder="0" />
+      <div class="row"><button type="submit">Search</button></div>
+    </form>
+    <form id="wallet-form">
+      <label for="address">Wallet address</label>
+      <input id="address" placeholder="1..." />
+      <div class="row"><button type="submit">Balance</button></div>
+    </form>
+    <div class="card"><pre id="out">Ready.</pre></div>
+    <p>Upstream: <a href="https://github.com/pdxwebdev/yadacoin">pdxwebdev/yadacoin</a> · Site: <a href="https://yadacoin.io/">yadacoin.io</a></p>
+  </main>
+  <script>
+    const out = document.getElementById("out");
+    const node = () => document.getElementById("node").value.replace(/\/$/, "");
+    async function call(path) {
+      out.textContent = "Loading " + path + "...";
+      try {
+        const res = await fetch(node() + path);
+        const text = await res.text();
+        let pretty = text;
+        try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (e) {}
+        out.textContent = res.status + " " + path + "\n" + pretty;
+      } catch (err) {
+        out.textContent = "Request failed: " + err + "\nIf this is a browser CORS error, query the node with: python -m yada_agent.cli --node " + node() + " status";
+      }
+    }
+    document.getElementById("status").onclick = () => call("/get-status");
+    document.getElementById("latest").onclick = () => call("/get-latest-block");
+    document.getElementById("peers").onclick = () => call("/get-peers");
+    document.getElementById("search-form").onsubmit = (e) => {
+      e.preventDefault();
+      const term = encodeURIComponent(document.getElementById("term").value);
+      call("/explorer-search?term=" + term);
+    };
+    document.getElementById("wallet-form").onsubmit = (e) => {
+      e.preventDefault();
+      const address = encodeURIComponent(document.getElementById("address").value);
+      call("/wallet?address=" + address);
+    };
+  </script>
+</body>
+</html>
